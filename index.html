@@ -137,7 +137,7 @@
         <h3 id="bienvenidaSocio">¡Bienvenido Socio!</h3>
         
         <div class="checkbox-group">
-            <label><input type="checkbox" id="cumpleanios"> 🎂 Socio Cumpleañero (10 invitados bonificados)</label>
+            <label><input type="checkbox" id="cumpleanios" onchange="actualizarPrecios()"> 🎂 Socio Cumpleañero (10 invitados bonificados)</label>
         </div>
 
         <div class="checkbox-group">
@@ -157,7 +157,7 @@
             <input type="text" id="invApellido" placeholder="Apellido">
             <input type="number" id="invEdad" placeholder="Edad (Obligatorio)" style="margin-top: 10px;">
             <label style="margin-top: 10px; font-weight: normal;">
-                <input type="checkbox" id="invJubilado"> ¿Es Jubilado/a?
+                <input type="checkbox" id="invJubilado" onchange="evaluarCheckJubilado(this)"> ¿Es Jubilado/a?
             </label>
         </div>
         <button class="btn" style="background-color: #27ae60;" onclick="agregarInvitado()">+ Agregar Lista</button>
@@ -199,19 +199,51 @@
 </div>
 
 <script>
+    // URL de conexión con tu Google Apps Script autónomo
+    const URL_API_SHEETS = "https://script.google.com/macros/s/AKfycbyq0UZM9CcOi3oyW_64QP0OcIi4TO7YwBJr2ejAj_IqN092iaLFmrr578XP8ogGbYAlrQ/exec";
+    
+    // Array para almacenar el listado global de invitados cargados
+    let listaInvitados = [];
+    let socioNombreGlobal = "";
+
     // Lógica e interactividad básica de pantallas
     function cambiarPantalla(stepId) {
         document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
         document.getElementById(stepId).classList.add('active');
     }
 
-    function verificarSocio() {
-        let socio = document.getElementById('socioId').value;
-        if(socio.trim() === "") return alert("Por favor ingresá un número de socio");
-        
-        // Aquí irá la conexión real con tu Google Sheet
-        document.getElementById('bienvenidaSocio').innerText = `¡Bienvenido Socio N° ${socio}!`;
-        cambiarPantalla('step2');
+    // 1. VERIFICACIÓN DE SOCIO Y BIENVENIDA PERSONALIZADA
+    async function verificarSocio() {
+        let socioInput = document.getElementById('socioId').value.trim();
+        if (socioInput === "") return alert("Por favor ingresá un número de socio");
+
+        let btn = document.querySelector('#step1 .btn');
+        btn.innerText = "Verificando en Padrón...";
+        btn.disabled = true;
+
+        try {
+            let response = await fetch(`${URL_API_SHEETS}?socio=${socioInput}`);
+            let resultado = await response.json();
+
+            if (resultado.error) {
+                alert("Hubo un error en el servidor de consulta: " + resultado.mensaje);
+                return;
+            }
+
+            if (resultado.encontrado) {
+                socioNombreGlobal = resultado.nombre;
+                document.getElementById('bienvenidaSocio').innerText = `¡Bienvenido/a, ${socioNombreGlobal}!`;
+                cambiarPantalla('step2');
+            } else {
+                alert("El número de socio no se encuentra registrado en el Centro Asturiano.");
+            }
+        } catch (error) {
+            console.error(error);
+            alert("Error de conexión. Asegurate de haber colocado correctamente la URL de Apps Script.");
+        } finally {
+            btn.innerText = "Verificar Socio";
+            btn.disabled = false;
+        }
     }
 
     function checkInflable(checkbox) {
@@ -224,11 +256,182 @@
     function cerrarModal() {
         document.getElementById('modalInflable').style.display = 'none';
     }
-    
-    // Arrays para guardar la lógica de invitados y cálculo
-    let invitados = [];
 
-    // Las funciones de cálculo matemático (ordenar por mayor valor, aplicar el tope de 10 del cumpleañero, chequear día de semana) y generación del string de WhatsApp las desarrollamos en el siguiente paso.
+    function evaluarCheckJubilado(checkbox) {
+        let edadInput = document.getElementById('invEdad').value.trim();
+        if (checkbox.checked && edadInput !== "") {
+            let edad = parseInt(edadInput);
+            if (edad < 18) {
+                alert("Aviso: Marcó la casilla 'Jubilado', pero la edad ingresada corresponde a un menor.");
+            }
+        }
+    }
+
+    // 2. AGREGAR INVITADOS A LA LISTA LOCAL
+    function agregarInvitado() {
+        let nombre = document.getElementById('invNombre').value.trim();
+        let apellido = document.getElementById('invApellido').value.trim();
+        let edadInput = document.getElementById('invEdad').value.trim();
+        let esJubilado = document.getElementById('invJubilado').checked;
+
+        if (!nombre || !edadInput) {
+            return alert("El Nombre y la Edad son campos obligatorios.");
+        }
+
+        let edad = parseInt(edadInput);
+        if (edad < 0) return alert("Por favor, ingrese una edad válida.");
+
+        listaInvitados.push({
+            nombre: nombre,
+            apellido: apellido || "",
+            edad: edad,
+            esJubilado: esJubilado,
+            precioBase: 0,
+            bonificado: false
+        });
+
+        // Limpiar el formulario de inserción
+        document.getElementById('invNombre').value = "";
+        document.getElementById('invApellido').value = "";
+        document.getElementById('invEdad').value = "";
+        document.getElementById('invJubilado').checked = false;
+
+        actualizarPrecios();
+    }
+
+    // 3. CÁLCULO DINÁMICO DE TARIFAS Y BONIFICACIÓN (DE MAYOR A MENOR)
+    function actualizarPrecios() {
+        let fechaTxt = document.getElementById('fechaEvento').value;
+        if (!fechaTxt) {
+            // Si todavía no se seleccionó fecha, renderiza la estructura sin calcular precios finales
+            calcularTotal();
+            return; 
+        }
+
+        // Resolviendo desfase de zona horaria del input date
+        let partes = fechaTxt.split('-');
+        let fecha = new Date(partes[0], partes[1] - 1, partes[2]);
+        let diaSemana = fecha.getDay(); // 0 = Domingo, 1 = Lunes, ..., 6 = Sábado
+        
+        // Clasificación de días: Lunes (1) a Jueves (4) vs Fin de semana y Feriados
+        let tipoDia = (diaSemana >= 1 && diaSemana <= 4) ? "LUN_JUE" : "VIE_DOM_FER";
+
+        // Asignación de tarifas individuales según matriz de costos
+        listaInvitados.forEach(inv => {
+            inv.bonificado = false; // Reseteo de seguridad
+
+            if (inv.edad <= 4) {
+                inv.precioBase = 0;
+            } else if (inv.edad >= 5 && inv.edad <= 12) {
+                inv.precioBase = (tipoDia === "LUN_JUE") ? 4500 : 5000;
+            } else if (inv.edad >= 13 && inv.edad <= 17) {
+                inv.precioBase = (tipoDia === "LUN_JUE") ? 6000 : 7000;
+            } else {
+                // Mayores de 18 años
+                if (inv.esJubilado) {
+                    inv.precioBase = (tipoDia === "LUN_JUE") ? 5000 : 6000;
+                } else {
+                    inv.precioBase = (tipoDia === "LUN_JUE") ? 8000 : 10000;
+                }
+            }
+        });
+
+        // Si aplica beneficio de cumpleaños, ordenamos de mayor a menor costo base y bonificamos los primeros 10
+        let esCumpleanios = document.getElementById('cumpleanios').checked;
+        if (esCumpleanios) {
+            listaInvitados.sort((a, b) => b.precioBase - a.precioBase);
+            
+            for (let i = 0; i < Math.min(10, listaInvitados.length); i++) {
+                listaInvitados[i].bonificado = true;
+            }
+        }
+
+        calcularTotal();
+    }
+
+    // 4. RENDERIZADO DINÁMICO Y SUMATORIA TOTAL
+    function calcularTotal() {
+        let total = 0;
+        let fechaTxt = document.getElementById('fechaEvento').value;
+        let html = "<ul style='padding-left:20px; margin: 10px 0;'>";
+
+        listaInvitados.forEach((inv, index) => {
+            let precioFinal = inv.bonificado ? 0 : inv.precioBase;
+            total += precioFinal;
+
+            let stringPrecio = !fechaTxt ? "💡 Defina fecha" : `$${precioFinal}`;
+            let stringBonif = inv.bonificado ? ' <span style="color:green; font-weight:bold;">(Bonificado)</span>' : '';
+
+            html += `<li style="margin-bottom: 6px;">
+                ${inv.nombre} ${inv.apellido} (${inv.edad} años) ${inv.esJubilado ? '- [Jubilado]' : ''} 
+                ── <strong>${stringPrecio}</strong>${stringBonif}
+                <button onclick="eliminarInvitado(${index})" style="background:none; border:none; color:red; cursor:pointer; margin-left:8px;" title="Eliminar">❌</button>
+            </li>`;
+        });
+        html += "</ul>";
+        
+        document.getElementById('listaInvitadosVisual').innerHTML = listaInvitados.length ? html : "No hay invitados cargados aún.";
+
+        // Sumar locación de inflable si el switch está encendido
+        if (document.getElementById('inflable').checked) {
+            total += 25000;
+        }
+
+        document.getElementById('txtTotal').innerText = `$${total.toLocaleString('es-AR')}`;
+    }
+
+    function eliminarInvitado(index) {
+        listaInvitados.splice(index, 1);
+        actualizarPrecios();
+    }
+
+    function irAPagar() {
+        if (!document.getElementById('fechaEvento').value) {
+            return alert("Por favor, seleccioná la fecha programada para el evento.");
+        }
+        if (listaInvitados.length === 0) {
+            return alert("Tenés que cargar al menos un invitado en la lista antes de avanzar.");
+        }
+        cambiarPantalla('step3');
+    }
+
+    // 5. CONSTRUCCIÓN EXPORTABLE DE DATOS HACIA WHATSAPP
+    function enviarWhatsApp() {
+        let socioId = document.getElementById('socioId').value;
+        let fechaTxt = document.getElementById('fechaEvento').value;
+        
+        // Formatear visualmente la fecha (AAAA-MM-DD a DD/MM/AAAA)
+        let fPartes = fechaTxt.split('-');
+        let fechaFormateada = `${fPartes[2]}/${fPartes[1]}/${fPartes[0]}`;
+
+        let traeInflable = document.getElementById('inflable').checked ? "SI (Abona $25.000)" : "NO";
+        let total = document.getElementById('txtTotal').innerText;
+
+        let mensaje = `🏛️ *CENTRO ASTURIANO DE BUENOS AIRES*\n`;
+        mensaje += `*Registro de Invitados al Predio*\n\n`;
+        mensaje += `👤 *Socio:* ${socioNombreGlobal} (N° ${socioId})\n`;
+        mensaje += `📅 *Fecha del Evento:* ${fechaFormateada}\n`;
+        mensaje += `🏰 *Trae Inflable/Animación:* ${traeInflable}\n`;
+        
+        if (document.getElementById('cumpleanios').checked) {
+            mensaje += `🎂 *Beneficio Aplicado:* Socio Cumpleañero (10 Invitados Bonificados de mayor a menor)\n`;
+        }
+        
+        mensaje += `\n📋 *LISTA DE INVITADOS (${listaInvitados.length}):*\n`;
+
+        listaInvitados.forEach((inv, idx) => {
+            let costo = inv.bonificado ? 0 : inv.precioBase;
+            let detJub = inv.esJubilado ? " [Jubilado]" : "";
+            let detBonif = inv.bonificado ? " [BONIFICADO]" : "";
+            mensaje += `${idx + 1}. ${inv.nombre} ${inv.apellido} (${inv.edad} añ.)${detJub} - $${costo}${detBonif}\n`;
+        });
+
+        mensaje += `\n💰 *TOTAL NETO A ABONAR:* ${total}\n\n`;
+        mensaje += `⚠️ _Se recuerda que las entradas se pueden abonar vía transferencia con los datos bancarios provistos o bien directo por ventanilla en el club hasta un día antes del evento de manera presencial._`;
+
+        let url = `https://api.whatsapp.com/send?text=${encodeURIComponent(mensaje)}`;
+        window.open(url, '_blank');
+    }
 </script>
 </body>
 </html>
