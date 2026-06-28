@@ -284,6 +284,7 @@
         listaInvitados.push({
             nombre: nombre,
             apellido: apellido || "",
+            text: edad,
             edad: edad,
             esJubilado: esJubilado,
             precioBase: 0,
@@ -429,10 +430,9 @@
         mensaje += `\n💰 *TOTAL NETO A ABONAR:* ${total}\n\n`;
         mensaje += `⚠️ _Se recuerda que las entradas se pueden abonar vía transferencia con los datos bancarios provistos o bien directo por ventanilla en el club hasta un día antes del evento de manera presencial._`;
 
-let url = `https://api.whatsapp.com/send?text=${encodeURIComponent(mensaje)}`;
+        let url = `https://api.whatsapp.com/send?phone=5491151585858&text=${encodeURIComponent(mensaje)}`;
 
         window.open(url, '_blank');
-
     }
 </script>
 </body>
