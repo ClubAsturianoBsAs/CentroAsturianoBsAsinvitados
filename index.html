@@ -429,9 +429,11 @@
         mensaje += `\n💰 *TOTAL NETO A ABONAR:* ${total}\n\n`;
         mensaje += `⚠️ _Se recuerda que las entradas se pueden abonar vía transferencia con los datos bancarios provistos o bien directo por ventanilla en el club hasta un día antes del evento de manera presencial._`;
 
-        let telefono = "5491151585858";
-let url = `https://api.whatsapp.com/send?phone=${telefono}&text=${encodeURIComponent(mensaje)}`;
-window.open(url, '_blank');
+let url = `https://api.whatsapp.com/send?text=${encodeURIComponent(mensaje)}`;
+
+        window.open(url, '_blank');
+
+    }
 </script>
 </body>
 </html>
