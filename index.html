@@ -53,13 +53,23 @@
             margin-bottom: 20px;
         }
 
+        .time-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .time-field {
+            flex: 1;
+        }
+
         label {
             display: block;
             margin-bottom: 8px;
             font-weight: bold;
         }
 
-        input[type="text"], input[type="number"], input[type="date"] {
+        input[type="text"], input[type="number"], input[type="date"], input[type="time"] {
             width: 100%;
             padding: 10px;
             border: 2px solid #bdc3c7;
@@ -135,7 +145,7 @@
 
     <div id="step2" class="step">
         <h3 id="bienvenidaSocio">¡Bienvenido Socio!</h3>
-        
+         
         <div class="checkbox-group">
             <label><input type="checkbox" id="cumpleanios" onchange="actualizarPrecios()"> 🎂 Socio Cumpleañero o Domingo Familiar (10 invitados bonificados)</label>
         </div>
@@ -147,6 +157,17 @@
         <div class="form-group">
             <label for="fechaEvento">Fecha del Evento:</label>
             <input type="date" id="fechaEvento" onchange="actualizarPrecios()">
+            
+            <div class="time-group">
+                <div class="time-field">
+                    <label for="horaInicio" style="font-size: 14px; font-weight: normal; margin-top: 5px;">Hora Inicio:</label>
+                    <input type="time" id="horaInicio">
+                </div>
+                <div class="time-field">
+                    <label for="horaFin" style="font-size: 14px; font-weight: normal; margin-top: 5px;">Hora Finalización:</label>
+                    <input type="time" id="horaFin">
+                </div>
+            </div>
         </div>
 
         <hr style="border: 1px solid var(--azul-asturias); margin: 25px 0;">
@@ -172,15 +193,14 @@
     <div id="step3" class="step">
         <h3>Opciones de Pago (SOLO SI TIENE UN IMPORTE A ABONAR)</h3>
         <p>Podés abonar el total mediante transferencia bancaria o directamente por ventanilla en el club hasta un día antes del evento.</p>
-        
+         
         <div style="background: #f9f9f9; padding: 15px; border-radius: 6px; font-size: 14px; border: 1px solid #ddd;">
             <strong>Datos Bancarios:</strong><br>
-            Banco Galicia
-            Centro Asturiano de Bs As
-            N.º Cuenta corriente 1084-1 004-4
-             Cbu 00700047-20000001084140
-
-            Cuit : 30-54586286-3
+            Banco Galicia<br>
+            Centro Asturiano de Bs As<br>
+            N.º Cuenta corriente 1084-1 004-4<br>
+            Cbu 00700047-20000001084140<br><br>
+            Cuit : 30-54586286-3<br>
             Alias: asturianobaires
         </div>
 
@@ -203,7 +223,7 @@
 <script>
     // URL de conexión con tu Google Apps Script autónomo
     const URL_API_SHEETS = "https://script.google.com/macros/s/AKfycbxA_jg3knpimrmjJ62_kN1voUu3dLCW6xhW1XHfivwRvXGB11pgZAFNif26z6VRtfRqng/exec";
-    
+     
     // Array para almacenar el listado global de invitados cargados
     let listaInvitados = [];
     let socioNombreGlobal = "";
@@ -315,7 +335,7 @@
         let partes = fechaTxt.split('-');
         let fecha = new Date(partes[0], partes[1] - 1, partes[2]);
         let diaSemana = fecha.getDay(); // 0 = Domingo, 1 = Lunes, ..., 6 = Sábado
-        
+         
         // Clasificación de días: Lunes (1) a Jueves (4) vs Fin de semana y Feriados
         let tipoDia = (diaSemana >= 1 && diaSemana <= 4) ? "LUN_JUE" : "VIE_DOM_FER";
 
@@ -343,7 +363,7 @@
         let esCumpleanios = document.getElementById('cumpleanios').checked;
         if (esCumpleanios) {
             listaInvitados.sort((a, b) => b.precioBase - a.precioBase);
-            
+             
             for (let i = 0; i < Math.min(10, listaInvitados.length); i++) {
                 listaInvitados[i].bonificado = true;
             }
@@ -372,7 +392,7 @@
             </li>`;
         });
         html += "</ul>";
-        
+         
         document.getElementById('listaInvitadosVisual').innerHTML = listaInvitados.length ? html : "No hay invitados cargados aún.";
 
         // Sumar locación de inflable si el switch está encendido
@@ -402,10 +422,18 @@
     function enviarWhatsApp() {
         let socioId = document.getElementById('socioId').value;
         let fechaTxt = document.getElementById('fechaEvento').value;
-        
+        let horaInicio = document.getElementById('horaInicio').value;
+        let horaFin = document.getElementById('horaFin').value;
+         
         // Formatear visualmente la fecha (AAAA-MM-DD a DD/MM/AAAA)
         let fPartes = fechaTxt.split('-');
         let fechaFormateada = `${fPartes[2]}/${fPartes[1]}/${fPartes[0]}`;
+
+        // Armar cadena de horario si completaron los campos
+        let stringHorario = "";
+        if (horaInicio || horaFin) {
+            stringHorario = ` ── 🕒 *Horario:* ${horaInicio || '🕳️'} a ${horaFin || '🕳️'}`;
+        }
 
         let traeInflable = document.getElementById('inflable').checked ? "SI (Abona $25.000)" : "NO";
         let total = document.getElementById('txtTotal').innerText;
@@ -413,13 +441,13 @@
         let mensaje = `🏛️ *CENTRO ASTURIANO DE BUENOS AIRES*\n`;
         mensaje += `*Registro de Invitados al Predio*\n\n`;
         mensaje += `👤 *Socio:* ${socioNombreGlobal} (N° ${socioId})\n`;
-        mensaje += `📅 *Fecha del Evento:* ${fechaFormateada}\n`;
+        mensaje += `📅 *Fecha del Evento:* ${fechaFormateada}${stringHorario}\n`;
         mensaje += `🏰 *Trae Inflable/Animación:* ${traeInflable}\n`;
-        
+         
         if (document.getElementById('cumpleanios').checked) {
             mensaje += `🎂 *Beneficio Aplicado:* Socio Cumpleañero (10 Invitados Bonificados de mayor a menor)\n`;
         }
-        
+         
         mensaje += `\n📋 *LISTA DE INVITADOS (${listaInvitados.length}):*\n`;
 
         listaInvitados.forEach((inv, idx) => {
