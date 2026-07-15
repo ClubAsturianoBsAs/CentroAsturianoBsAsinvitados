@@ -147,7 +147,11 @@
         <h3 id="bienvenidaSocio">¡Bienvenido Socio!</h3>
          
         <div class="checkbox-group">
-            <label><input type="checkbox" id="cumpleanios" onchange="actualizarPrecios()"> 🎂 Socio Cumpleañero o Domingo Familiar (10 invitados bonificados)</label>
+            <label><input type="checkbox" id="cumpleanios" onchange="seleccionarBeneficio('cumpleanios')"> 🎂 Socio Cumpleañero (10 invitados bonificados)</label>
+        </div>
+
+        <div class="checkbox-group">
+            <label><input type="checkbox" id="domingoFamiliar" onchange="seleccionarBeneficio('domingoFamiliar')"> 🏡 Domingo Familiar (10 invitados bonificados)</label>
         </div>
 
         <div class="checkbox-group">
@@ -155,7 +159,7 @@
         </div>
 
         <div class="form-group">
-            <label for="fechaEvento">Fecha del Evento:</label>
+            <label for="fechaEvento">Fecha del Evento (Máx. 10 días de anticipación):</label>
             <input type="date" id="fechaEvento" onchange="actualizarPrecios()">
             
             <div class="time-group">
@@ -227,6 +231,42 @@
     // Array para almacenar el listado global de invitados cargados
     let listaInvitados = [];
     let socioNombreGlobal = "";
+
+    // Al cargar la página, limitamos el calendario a hoy y los próximos 10 días
+    window.addEventListener('DOMContentLoaded', () => {
+        configurarLimitesCalendario();
+    });
+
+    function configurarLimitesCalendario() {
+        const hoy = new Date();
+        const maxFecha = new Date();
+        maxFecha.setDate(hoy.getDate() + 10);
+
+        // Formato AAAA-MM-DD para el atributo de fecha
+        const formatearFecha = (fecha) => {
+            const aaaa = fecha.getFullYear();
+            const mm = String(fecha.getMonth() + 1).padStart(2, '0');
+            const dd = String(fecha.getDate()).padStart(2, '0');
+            return `${aaaa}-${mm}-${dd}`;
+        };
+
+        const inputFecha = document.getElementById('fechaEvento');
+        inputFecha.min = formatearFecha(hoy);
+        inputFecha.max = formatearFecha(maxFecha);
+    }
+
+    // Control para deseleccionar automáticamente el otro beneficio
+    function seleccionarBeneficio(tipo) {
+        const cumple = document.getElementById('cumpleanios');
+        const domingo = document.getElementById('domingoFamiliar');
+
+        if (tipo === 'cumpleanios' && cumple.checked) {
+            domingo.checked = false;
+        } else if (tipo === 'domingoFamiliar' && domingo.checked) {
+            cumple.checked = false;
+        }
+        actualizarPrecios();
+    }
 
     // Lógica e interactividad básica de pantallas
     function cambiarPantalla(stepId) {
@@ -326,7 +366,6 @@
     function actualizarPrecios() {
         let fechaTxt = document.getElementById('fechaEvento').value;
         if (!fechaTxt) {
-            // Si todavía no se seleccionó fecha, renderiza la estructura sin calcular precios finales
             calcularTotal();
             return; 
         }
@@ -359,9 +398,9 @@
             }
         });
 
-        // Si aplica beneficio de cumpleaños, ordenamos de mayor a menor costo base y bonificamos los primeros 10
-        let esCumpleanios = document.getElementById('cumpleanios').checked;
-        if (esCumpleanios) {
+        // Aplicamos beneficio de 10 bonificados si corresponde
+        let tieneBeneficio = document.getElementById('cumpleanios').checked || document.getElementById('domingoFamiliar').checked;
+        if (tieneBeneficio) {
             listaInvitados.sort((a, b) => b.precioBase - a.precioBase);
              
             for (let i = 0; i < Math.min(10, listaInvitados.length); i++) {
@@ -446,6 +485,8 @@
          
         if (document.getElementById('cumpleanios').checked) {
             mensaje += `🎂 *Beneficio Aplicado:* Socio Cumpleañero (10 Invitados Bonificados de mayor a menor)\n`;
+        } else if (document.getElementById('domingoFamiliar').checked) {
+            mensaje += `🏡 *Beneficio Aplicado:* Domingo Familiar (10 Invitados Bonificados de mayor a menor)\n`;
         }
          
         mensaje += `\n📋 *LISTA DE INVITADOS (${listaInvitados.length}):*\n`;
