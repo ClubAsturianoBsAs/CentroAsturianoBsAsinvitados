@@ -385,15 +385,15 @@
             if (inv.edad <= 4) {
                 inv.precioBase = 0;
             } else if (inv.edad >= 5 && inv.edad <= 12) {
-                inv.precioBase = (tipoDia === "LUN_JUE") ? 4500 : 5000;
+                inv.precioBase = (tipoDia === "LUN_JUE") ? 4900 : 5500;
             } else if (inv.edad >= 13 && inv.edad <= 17) {
-                inv.precioBase = (tipoDia === "LUN_JUE") ? 6000 : 7000;
+                inv.precioBase = (tipoDia === "LUN_JUE") ? 6700 : 7700;
             } else {
                 // Mayores de 18 años
                 if (inv.esJubilado) {
-                    inv.precioBase = (tipoDia === "LUN_JUE") ? 5000 : 6000;
+                    inv.precioBase = (tipoDia === "LUN_JUE") ? 5500 : 6700;
                 } else {
-                    inv.precioBase = (tipoDia === "LUN_JUE") ? 8000 : 10000;
+                    inv.precioBase = (tipoDia === "LUN_JUE") ? 8800 : 11000;
                 }
             }
         });
