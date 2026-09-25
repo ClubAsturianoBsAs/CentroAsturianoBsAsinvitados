@@ -106,7 +106,7 @@
             border-left: 4px solid var(--amarillo-asturias);
         }
 
-        /* Estilos para el modal/emergente */
+        /* Estilos para los modales / emergentes */
         .modal {
             display: none;
             position: fixed;
@@ -169,7 +169,7 @@
                 </div>
                 <div class="time-field">
                     <label for="horaFin" style="font-size: 14px; font-weight: normal; margin-top: 5px;">Hora Finalización:</label>
-                    <input type="time" id="horaFin">
+                    <input type="time" id="horaFin" onchange="evaluarHorarioNocturno()">
                 </div>
             </div>
         </div>
@@ -216,11 +216,21 @@
     </div>
 </div>
 
+<!-- Modal Inflable -->
 <div id="modalInflable" class="modal">
     <div class="modal-content">
         <h3>⚠️ Aviso Importante</h3>
         <p>En los casos que se desea traer inflable o animación, se tendría que abonar locación $25.000, 1 semana previa al evento, ART y/o seguro de accidentes personales con cláusula de no repetición a nombre del <strong>CENTRO ASTURIANO DE BUENOS AIRES Cuit: 30-54586286-3</strong>.</p>
-        <button class="btn" onclick="cerrarModal()">Entendido</button>
+        <button class="btn" onclick="cerrarModal('modalInflable')">Entendido</button>
+    </div>
+</div>
+
+<!-- Modal Horario Nocturno (Seguridad) -->
+<div id="modalNocturno" class="modal">
+    <div class="modal-content">
+        <h3>👮 Notificación de Seguridad</h3>
+        <p>Al seleccionar un horario de finalización entre las <strong>00:30 hs</strong> y las <strong>04:00 hs</strong>, se debe abonar un adicional de <strong>$20.000</strong> (o $25.000 según aplique) en concepto de servicio de seguridad obligatoria.</p>
+        <button class="btn" onclick="cerrarModal('modalNocturno')">Entendido</button>
     </div>
 </div>
 
@@ -315,8 +325,18 @@
         calcularTotal();
     }
 
-    function cerrarModal() {
-        document.getElementById('modalInflable').style.display = 'none';
+    function evaluarHorarioNocturno() {
+        let horaFinVal = document.getElementById('horaFin').value;
+        if (horaFinVal) {
+            if (horaFinVal >= "00:30" && horaFinVal <= "04:00") {
+                document.getElementById('modalNocturno').style.display = 'flex';
+            }
+        }
+        actualizarPrecios();
+    }
+
+    function cerrarModal(modalId) {
+        document.getElementById(modalId).style.display = 'none';
     }
 
     function evaluarCheckJubilado(checkbox) {
@@ -439,6 +459,12 @@
             total += 25000;
         }
 
+        // Evaluación y adición de recargo por horario de finalización nocturno (00:30 a 04:00)
+        let horaFinVal = document.getElementById('horaFin').value;
+        if (horaFinVal && horaFinVal >= "00:30" && horaFinVal <= "04:00") {
+            total += 20000; // Ajustar a 25000 si la tarifa de seguridad requerida es de esa suma
+        }
+
         document.getElementById('txtTotal').innerText = `$${total.toLocaleString('es-AR')}`;
     }
 
@@ -475,6 +501,7 @@
         }
 
         let traeInflable = document.getElementById('inflable').checked ? "SI (Abona $25.000)" : "NO";
+        let esNocturno = (horaFin && horaFin >= "00:30" && horaFin <= "04:00") ? "SI (Abona Seguridad)" : "NO";
         let total = document.getElementById('txtTotal').innerText;
 
         let mensaje = `🏛️ *CENTRO ASTURIANO DE BUENOS AIRES*\n`;
@@ -482,6 +509,7 @@
         mensaje += `👤 *Socio:* ${socioNombreGlobal} (N° ${socioId})\n`;
         mensaje += `📅 *Fecha del Evento:* ${fechaFormateada}${stringHorario}\n`;
         mensaje += `🏰 *Trae Inflable/Animación:* ${traeInflable}\n`;
+        mensaje += `👮 *Recargo Nocturno/Seguridad:* ${esNocturno}\n`;
          
         if (document.getElementById('cumpleanios').checked) {
             mensaje += `🎂 *Beneficio Aplicado:* Socio Cumpleañero (10 Invitados Bonificados de mayor a menor)\n`;
