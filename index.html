@@ -145,7 +145,7 @@
 
     <div id="step2" class="step">
         <h3 id="bienvenidaSocio">¡Bienvenido Socio!</h3>
-         
+        
         <div class="checkbox-group">
             <label><input type="checkbox" id="cumpleanios" onchange="seleccionarBeneficio('cumpleanios')"> 🎂 Socio Cumpleañero (10 invitados bonificados)</label>
         </div>
@@ -197,7 +197,7 @@
     <div id="step3" class="step">
         <h3>Opciones de Pago (SOLO SI TIENE UN IMPORTE A ABONAR)</h3>
         <p>Podés abonar el total mediante transferencia bancaria o directamente por ventanilla en el club hasta un día antes del evento.</p>
-         
+        
         <div style="background: #f9f9f9; padding: 15px; border-radius: 6px; font-size: 14px; border: 1px solid #ddd;">
             <strong>Datos Bancarios:</strong><br>
             Banco Galicia<br>
@@ -237,7 +237,14 @@
 <script>
     // URL de conexión con tu Google Apps Script autónomo
     const URL_API_SHEETS = "https://script.google.com/macros/s/AKfycbxA_jg3knpimrmjJ62_kN1voUu3dLCW6xhW1XHfivwRvXGB11pgZAFNif26z6VRtfRqng/exec";
-     
+    
+    // Fechas específicas bloqueadas (formato AAAA-MM-DD)
+    const fechasBloqueadas = [
+        "2026-12-25", 
+        "2027-01-01",
+        "2026-11-20"
+    ];
+
     // Array para almacenar el listado global de invitados cargados
     let listaInvitados = [];
     let socioNombreGlobal = "";
@@ -385,6 +392,15 @@
     // 3. CÁLCULO DINÁMICO DE TARIFAS Y BONIFICACIÓN (DE MAYOR A MENOR)
     function actualizarPrecios() {
         let fechaTxt = document.getElementById('fechaEvento').value;
+
+        // Validación de fecha bloqueada
+        if (fechaTxt && fechasBloqueadas.includes(fechaTxt)) {
+            alert("⚠️ Lo sentimos, el Centro Asturiano permanecerá cerrado en esta fecha.");
+            document.getElementById('fechaEvento').value = "";
+            calcularTotal();
+            return;
+        }
+
         if (!fechaTxt) {
             calcularTotal();
             return; 
@@ -394,7 +410,7 @@
         let partes = fechaTxt.split('-');
         let fecha = new Date(partes[0], partes[1] - 1, partes[2]);
         let diaSemana = fecha.getDay(); // 0 = Domingo, 1 = Lunes, ..., 6 = Sábado
-         
+        
         // Clasificación de días: Lunes (1) a Jueves (4) vs Fin de semana y Feriados
         let tipoDia = (diaSemana >= 1 && diaSemana <= 4) ? "LUN_JUE" : "VIE_DOM_FER";
 
@@ -405,15 +421,15 @@
             if (inv.edad <= 4) {
                 inv.precioBase = 0;
             } else if (inv.edad >= 5 && inv.edad <= 12) {
-                inv.precioBase = (tipoDia === "LUN_JUE") ? 5000 : 6000;
+                inv.precioBase = (tipoDia === "LUN_JUE") ? 6000 : 7000;
             } else if (inv.edad >= 13 && inv.edad <= 17) {
-                inv.precioBase = (tipoDia === "LUN_JUE") ? 7000 : 8000;
+                inv.precioBase = (tipoDia === "LUN_JUE") ? 8000 : 9000;
             } else {
                 // Mayores de 18 años
                 if (inv.esJubilado) {
-                    inv.precioBase = (tipoDia === "LUN_JUE") ? 6000 : 7000;
+                    inv.precioBase = (tipoDia === "LUN_JUE") ? 7000 : 8000;
                 } else {
-                    inv.precioBase = (tipoDia === "LUN_JUE") ? 9000 : 11000;
+                    inv.precioBase = (tipoDia === "LUN_JUE") ? 10000 : 12000;
                 }
             }
         });
@@ -422,7 +438,7 @@
         let tieneBeneficio = document.getElementById('cumpleanios').checked || document.getElementById('domingoFamiliar').checked;
         if (tieneBeneficio) {
             listaInvitados.sort((a, b) => b.precioBase - a.precioBase);
-             
+            
             for (let i = 0; i < Math.min(10, listaInvitados.length); i++) {
                 listaInvitados[i].bonificado = true;
             }
@@ -451,7 +467,7 @@
             </li>`;
         });
         html += "</ul>";
-         
+        
         document.getElementById('listaInvitadosVisual').innerHTML = listaInvitados.length ? html : "No hay invitados cargados aún.";
 
         // Sumar locación de inflable si el switch está encendido
@@ -489,7 +505,7 @@
         let fechaTxt = document.getElementById('fechaEvento').value;
         let horaInicio = document.getElementById('horaInicio').value;
         let horaFin = document.getElementById('horaFin').value;
-         
+        
         // Formatear visualmente la fecha (AAAA-MM-DD a DD/MM/AAAA)
         let fPartes = fechaTxt.split('-');
         let fechaFormateada = `${fPartes[2]}/${fPartes[1]}/${fPartes[0]}`;
@@ -510,13 +526,13 @@
         mensaje += `📅 *Fecha del Evento:* ${fechaFormateada}${stringHorario}\n`;
         mensaje += `🏰 *Trae Inflable/Animación:* ${traeInflable}\n`;
         mensaje += `👮 *Recargo Nocturno/Seguridad:* ${esNocturno}\n`;
-         
+        
         if (document.getElementById('cumpleanios').checked) {
             mensaje += `🎂 *Beneficio Aplicado:* Socio Cumpleañero (10 Invitados Bonificados de mayor a menor)\n`;
         } else if (document.getElementById('domingoFamiliar').checked) {
             mensaje += `🏡 *Beneficio Aplicado:* Domingo Familiar (10 Invitados Bonificados de mayor a menor)\n`;
         }
-         
+        
         mensaje += `\n📋 *LISTA DE INVITADOS (${listaInvitados.length}):*\n`;
 
         listaInvitados.forEach((inv, idx) => {
